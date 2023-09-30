@@ -1,4 +1,4 @@
-FROM lambci/lambda-base:build
+FROM amazon/aws-lambda-go:latest
 
 # Using instructions from:
 # https://trac.ffmpeg.org/wiki/CompilationGuide/Centos
@@ -17,16 +17,18 @@ RUN yum install -y install autoconf \
   mercurial \
   pkgconfig \
   zlib-devel \
-  libfdk-aac-dev
+  libfdk-aac-dev \
+  zip \
+  cat
 
 RUN mkdir ~/ffmpeg_sources
 
 # Install Nasm
 # An assembler used by some libraries. Highly recommended or your resulting build may be very slow.
 RUN cd ~/ffmpeg_sources && \
-  curl -O -L https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.bz2 && \
-  tar xjvf nasm-2.14.02.tar.bz2 && \
-  cd nasm-2.14.02 && \
+  curl -O -L https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/nasm-2.16.01.tar.bz2 && \
+  tar xjvf nasm-2.16.01.tar.bz2 && \
+  cd nasm-2.16.01 && \
   ./autogen.sh && \
   ./configure --prefix="$HOME/ffmpeg_build" --bindir="$HOME/bin" && \
   PATH="$HOME/bin:$PATH" make && \
@@ -54,8 +56,8 @@ RUN cd ~/ffmpeg_sources && \
 # Install libx265
 # H.265/HEVC video encoder.
 RUN cd ~/ffmpeg_sources && \
-  hg clone https://bitbucket.org/multicoreware/x265 && \
-  cd ~/ffmpeg_sources/x265/build/linux && \
+  git clone https://bitbucket.org/multicoreware/x265_git.git && \ 
+  cd ~/ffmpeg_sources/x265_git/build/linux && \
   PATH="$HOME/bin:$PATH" cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$HOME/ffmpeg_build" -DENABLE_SHARED:bool=off ../../source && \
   PATH="$HOME/bin:$PATH" make && \
   make install
@@ -99,7 +101,7 @@ RUN cd ~/ffmpeg_sources && \
   PATH="$HOME/bin:$PATH" make && \
   make install
 
-ARG FFMPEG_VERSION
+ARG FFMPEG_VERSION=6.0
 
 # Install ffmpeg
 RUN cd ~/ffmpeg_sources && \
@@ -107,24 +109,24 @@ RUN cd ~/ffmpeg_sources && \
   tar xjvf ffmpeg-snapshot.tar.bz2 && \
   cd ffmpeg && \
   PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$HOME/ffmpeg_build/lib/pkgconfig" ./configure \
-    --prefix="$HOME/ffmpeg_build" \
-    --pkg-config-flags="--static" \
-    --extra-cflags="-I$HOME/ffmpeg_build/include" \
-    --extra-ldflags="-L$HOME/ffmpeg_build/lib" \
-    --extra-libs=-lpthread \
-    --extra-libs=-lm \
-    --bindir="$HOME/bin" \
-    --enable-gpl \
-    --enable-libfdk_aac \
-    --enable-libfreetype \
-    --enable-libmp3lame \
-    --enable-libopus \
-    --enable-libvpx \
-    --enable-libx264 \
-    --enable-libx265 \
-    --enable-nonfree && \
+  --prefix="$HOME/ffmpeg_build" \
+  --pkg-config-flags="--static" \
+  --extra-cflags="-I$HOME/ffmpeg_build/include" \
+  --extra-ldflags="-L$HOME/ffmpeg_build/lib" \
+  --extra-libs=-lpthread \
+  --extra-libs=-lm \
+  --bindir="$HOME/bin" \
+  --enable-gpl \
+  --enable-libfdk_aac \
+  --enable-libfreetype \
+  --enable-libmp3lame \
+  --enable-libopus \
+  --enable-libvpx \
+  --enable-libx264 \
+  --enable-libx265 \
+  --enable-nonfree && \
   PATH="$HOME/bin:$PATH" make && \
-  PATH="$HOME/bin:$PATH" make install
+  PATH="$HOME/bin:$PATH" make -j8 install
 
 RUN mkdir -p $HOME/lib && \
   cp /usr/lib64/libxcb*.so.* $HOME/lib && \
@@ -137,6 +139,9 @@ RUN mkdir -p $HOME/lib && \
 RUN rm -rf $HOME/ffmpeg_sources && \
   rm -rf $HOME/ffmpeg_build
 
+
 RUN cd $HOME && \
   find . ! -perm -o=r -exec chmod +400 {} \; && \
   zip -yr /tmp/ffmpeg-${FFMPEG_VERSION}.zip ./
+
+ENTRYPOINT [ "/bin/sh" ]
