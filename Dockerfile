@@ -1,4 +1,4 @@
-FROM amazon/aws-lambda-go:latest
+FROM amazon/aws-lambda-provided:latest
 
 # Using instructions from:
 # https://trac.ffmpeg.org/wiki/CompilationGuide/Centos
@@ -19,7 +19,9 @@ RUN yum install -y install autoconf \
   zlib-devel \
   libfdk-aac-dev \
   zip \
-  cat
+  cat \ 
+  libxcb \
+  libxcb-devel 
 
 RUN mkdir ~/ffmpeg_sources
 
@@ -31,7 +33,7 @@ RUN cd ~/ffmpeg_sources && \
   cd nasm-2.16.01 && \
   ./autogen.sh && \
   ./configure --prefix="$HOME/ffmpeg_build" --bindir="$HOME/bin" && \
-  PATH="$HOME/bin:$PATH" make && \
+  PATH="$HOME/bin:$PATH" make -j8 && \
   make install
 
 # Install Yasm
@@ -41,7 +43,7 @@ RUN cd ~/ffmpeg_sources && \
   tar xzvf yasm-1.3.0.tar.gz && \
   cd yasm-1.3.0 && \
   ./configure --prefix="$HOME/ffmpeg_build" --bindir="$HOME/bin" && \
-  make && \
+  make -j8 && \
   make install
 
 # Install libx264
@@ -50,7 +52,7 @@ RUN cd ~/ffmpeg_sources && \
   git clone --depth 1 https://code.videolan.org/videolan/x264.git && \
   cd x264 && \
   PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$HOME/ffmpeg_build/lib/pkgconfig" ./configure --prefix="$HOME/ffmpeg_build" --bindir="$HOME/bin" --enable-static && \
-  PATH="$HOME/bin:$PATH" make && \
+  PATH="$HOME/bin:$PATH" make -j8 && \
   make install
 
 # Install libx265
@@ -59,7 +61,7 @@ RUN cd ~/ffmpeg_sources && \
   git clone https://bitbucket.org/multicoreware/x265_git.git && \ 
   cd ~/ffmpeg_sources/x265_git/build/linux && \
   PATH="$HOME/bin:$PATH" cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$HOME/ffmpeg_build" -DENABLE_SHARED:bool=off ../../source && \
-  PATH="$HOME/bin:$PATH" make && \
+  PATH="$HOME/bin:$PATH" make -j8 && \
   make install
 
 # Install libfdk_aac
@@ -69,7 +71,7 @@ RUN cd ~/ffmpeg_sources  && \
   cd fdk-aac && \
   autoreconf -fiv && \
   PATH="$HOME/bin:$PATH" ./configure --prefix="$HOME/ffmpeg_build" --disable-shared && \
-  PATH="$HOME/bin:$PATH" make && \
+  PATH="$HOME/bin:$PATH" make -j8 && \
   make install
 
 # Install libmp3lame
@@ -79,7 +81,7 @@ RUN cd ~/ffmpeg_sources && \
   tar xzvf lame-3.100.tar.gz && \
   cd lame-3.100 && \
   PATH="$HOME/bin:$PATH" ./configure --prefix="$HOME/ffmpeg_build" --bindir="$HOME/bin" --disable-shared --enable-nasm && \
-  PATH="$HOME/bin:$PATH" make && \
+  PATH="$HOME/bin:$PATH" make -j8 && \
   make install
 
 # Install libopus
@@ -89,7 +91,7 @@ RUN cd ~/ffmpeg_sources && \
   tar xzvf opus-1.3.1.tar.gz && \
   cd opus-1.3.1 && \
   PATH="$HOME/bin:$PATH" ./configure --prefix="$HOME/ffmpeg_build" --disable-shared && \
-  PATH="$HOME/bin:$PATH" make && \
+  PATH="$HOME/bin:$PATH" make -j8 && \
   make install
 
 # Install libvpx
@@ -98,7 +100,7 @@ RUN cd ~/ffmpeg_sources && \
   git clone --depth 1 https://chromium.googlesource.com/webm/libvpx.git && \
   cd libvpx && \
   PATH="$HOME/bin:$PATH" ./configure --prefix="$HOME/ffmpeg_build" --disable-examples --disable-unit-tests --enable-vp9-highbitdepth --as=yasm && \
-  PATH="$HOME/bin:$PATH" make && \
+  PATH="$HOME/bin:$PATH" make -j8 && \
   make install
 
 ARG FFMPEG_VERSION=6.0
@@ -125,8 +127,8 @@ RUN cd ~/ffmpeg_sources && \
   --enable-libx264 \
   --enable-libx265 \
   --enable-nonfree && \
-  PATH="$HOME/bin:$PATH" make && \
-  PATH="$HOME/bin:$PATH" make -j8 install
+  PATH="$HOME/bin:$PATH" make -j8 && \
+  PATH="$HOME/bin:$PATH" make install
 
 RUN mkdir -p $HOME/lib && \
   cp /usr/lib64/libxcb*.so.* $HOME/lib && \
